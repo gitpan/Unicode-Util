@@ -10,6 +10,7 @@ README
 t/00-load.t
 t/chop.t
 t/length.t
+t/reverse.t
 xt/author/kwalitee.t
 xt/author/pod-coverage.t
 xt/author/pod.t

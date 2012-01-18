@@ -7,10 +7,11 @@ use utf8;
 use parent 'Exporter';
 use Encode qw( encode_utf8 );
 
-our $VERSION   = '0.02';
+our $VERSION   = '0.03';
 our @EXPORT_OK = qw(
-    graph_length code_length byte_length
-    graph_chop   code_chop
+    graph_length  code_length  byte_length
+    graph_chop    code_chop
+    graph_reverse
 );
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
@@ -33,16 +34,27 @@ sub byte_length {
 }
 
 sub graph_chop {
-    my $str = \$_[0];
-    utf8::upgrade($$str);
-    $$str =~ s/(\X)$//;
-    return $1;
+    my ($str) = @_;
+    utf8::upgrade($str);
+    $str =~ s/(\X)\z//;
+    return $str;
 }
 
 sub code_chop {
-    my $str = \$_[0];
-    utf8::upgrade($$str);
-    return chop $$str;
+    my ($str) = @_;
+    utf8::upgrade($str);
+    chop $str;
+    return $str;
+}
+
+sub graph_reverse {
+    my ($str) = @_;
+    utf8::upgrade($str);
+    my $reverse = '';
+    while ( $str =~ s/(\X)\z// ) {
+        $reverse .= $1;
+    }
+    return $reverse;
 }
 
 1;
@@ -57,7 +69,7 @@ Unicode::Util - Unicode-aware versions of built-in Perl functions
 
 =head1 VERSION
 
-This document describes Unicode::Util version 0.02.
+This document describes Unicode::Util version 0.03.
 
 =head1 SYNOPSIS
 
@@ -77,19 +89,21 @@ tailored to work on three different units:
 
 =over
 
-=item * graph: Unicode extended grapheme clusters (graphemes)
+=item * B<graph:> Unicode extended grapheme clusters (graphemes)
 
-=item * code: Unicode codepoints
+=item * B<code:> Unicode codepoints
 
-=item * byte: 8-bit bytes (octets)
+=item * B<byte:> 8-bit bytes (octets)
 
 =back
 
 This is an early release and this module is likely to have major revisions.
-Only the C<length>-functions are currently implemented.  See the L</TODO>
-section for planned future additions.
+Only the C<length>-, C<chop>-, and C<reverse>-functions are currently
+implemented.  See the L</TODO> section for planned future additions.
 
 =head1 FUNCTIONS
+
+=head2 length
 
 =over
 
@@ -110,15 +124,31 @@ count in a string.
 Returns the length in bytes of the given string encoded as UTF-8.  This is the
 number of bytes that many computers would count when storing a string.
 
+=back
+
+=head2 chop
+
+These do not modify the original value, unlike the built-in C<chop>.
+
+=over
+
 =item graph_chop($string)
 
-Chops off the last grapheme of the given string and returns the grapheme
-chopped.
+Returns the given string with the last grapheme chopped off.
 
 =item code_chop($string)
 
-Chops off the last codepoint of the given string and returns the codepoint
-chopped.
+Returns the given string with the last codepoint chopped off.
+
+=back
+
+=head2 reverse
+
+=over
+
+=item graph_reverse($string)
+
+Returns the given string value with all graphemes in the opposite order.
 
 =back
 
@@ -127,12 +157,8 @@ chopped.
 Evaluate the following core Perl functions and operators for the potential
 addition to this module.
 
-C<reverse>, C<split>, C<substr>, C<index>, C<rindex>,
+C<split>, C<substr>, C<index>, C<rindex>,
 C<eq>, C<ne>, C<lt>, C<gt>, C<le>, C<ge>, C<cmp>
-
-=head1 SEE ALSO
-
-The C<length>-functions are based on methods provided by L<Perl6::Str>.
 
 =head1 AUTHOR
 
