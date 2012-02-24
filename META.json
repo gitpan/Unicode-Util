@@ -16,7 +16,7 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "Test::More" : "0.82"
+            "Test::More" : "0.41"
          }
       },
       "configure" : {
@@ -34,7 +34,7 @@
    "provides" : {
       "Unicode::Util" : {
          "file" : "lib/Unicode/Util.pm",
-         "version" : "0.03"
+         "version" : "0.04"
       }
    },
    "release_status" : "stable",
@@ -50,5 +50,5 @@
          "url" : "git://github.com/patch/unicode-util-pm5.git"
       }
    },
-   "version" : "0.03"
+   "version" : "0.04"
 }
