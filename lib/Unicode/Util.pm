@@ -6,8 +6,9 @@ use warnings;
 use utf8;
 use parent 'Exporter';
 use Encode qw( encode find_encoding );
+use Unicode::Normalize qw( normalize );
 
-our $VERSION   = '0.04';
+our $VERSION   = '0.05';
 our @EXPORT_OK = qw(
     graph_length  code_length  byte_length
     graph_chop    code_chop
@@ -16,6 +17,7 @@ our @EXPORT_OK = qw(
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
 use constant DEFAULT_ENCODING => 'UTF-8';
+use constant IS_NORMAL_FORM   => qr{^ (?:NF)? K? [CD] $}xi;
 
 sub graph_length {
     my ($str) = @_;
@@ -24,17 +26,26 @@ sub graph_length {
 }
 
 sub code_length {
-    my ($str) = @_;
+    my ($str, $nf) = @_;
     utf8::upgrade($str);
+
+    if ($nf && $nf =~ IS_NORMAL_FORM) {
+        $str = normalize(uc $nf, $str);
+    }
+
     return length $str;
 }
 
 sub byte_length {
-    my ($str, $enc) = @_;
+    my ($str, $enc, $nf) = @_;
     utf8::upgrade($str);
 
     if ( !$enc || !find_encoding($enc) ) {
         $enc = DEFAULT_ENCODING;
+    }
+
+    if ($nf && $nf =~ IS_NORMAL_FORM) {
+        $str = normalize(uc $nf, $str);
     }
 
     return length encode($enc, $str);
@@ -58,9 +69,11 @@ sub graph_reverse {
     my ($str) = @_;
     utf8::upgrade($str);
     my $reverse = '';
+
     while ( $str =~ s/(\X)\z// ) {
         $reverse .= $1;
     }
+
     return $reverse;
 }
 
@@ -76,7 +89,7 @@ Unicode::Util - Unicode-aware versions of built-in Perl functions
 
 =head1 VERSION
 
-This document describes Unicode::Util version 0.04.
+This document describes Unicode::Util version 0.05.
 
 =head1 SYNOPSIS
 
@@ -85,9 +98,9 @@ This document describes Unicode::Util version 0.04.
     # grapheme cluster ю́: Cyrillic small letter yu + combining acute accent
     my $grapheme = "\x{44E}\x{301}";
 
-    say graph_length($grapheme);  # 1
-    say code_length($grapheme);   # 2
-    say byte_length($grapheme);   # 4
+    say graph_length($grapheme);          # 1
+    say code_length($grapheme);           # 2
+    say byte_length($grapheme, 'UTF-8');  # 4
 
 =head1 DESCRIPTION
 
@@ -122,16 +135,26 @@ non-printing characters.
 
 =item code_length($string)
 
+=item code_length($string, $normal_form)
+
 Returns the length in codepoints of the given string.  This is likely the
 number of “characters” that many programmers and programming languages would
-count in a string.
+count in a string.  If the optional Unicode normalization form is supplied,
+the length will be of the string as if it had been normalized to that form.
+
+Valid normalization forms are C<C> or C<NFC>, C<D> or C<NFD>, C<KC> or
+C<NFKC>, and C<KD> or C<NFKD>.
 
 =item byte_length($string)
 
 =item byte_length($string, $encoding)
 
-Returns the length in bytes of the given string if it were encoded using the
-specified encoding or UTF-8 if no encoding is supplied.
+=item byte_length($string, $encoding, $normal_form)
+
+Returns the length in bytes of the given string as if it were encoded using
+the specified encoding or UTF-8 if no encoding is supplied.  If the optional
+Unicode normalization form is supplied, the length will be of the string as if
+it had been normalized to that form.
 
 =back
 
