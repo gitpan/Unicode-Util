@@ -8,13 +8,16 @@ use parent 'Exporter';
 use Encode qw( encode find_encoding );
 use Unicode::Normalize qw( normalize );
 
-our $VERSION   = '0.05';
+our $VERSION   = '0.06';
 our @EXPORT_OK = qw(
     graph_length  code_length  byte_length
     graph_chop    code_chop
     graph_reverse
 );
-our %EXPORT_TAGS = ( all => \@EXPORT_OK );
+our %EXPORT_TAGS = (
+    all    => \@EXPORT_OK,
+    length => [qw( graph_length code_length byte_length )],
+);
 
 use constant DEFAULT_ENCODING => 'UTF-8';
 use constant IS_NORMAL_FORM   => qr{^ (?:NF)? K? [CD] $}xi;
@@ -58,6 +61,9 @@ sub graph_chop {
     return $str;
 }
 
+# code_chop is deprecated: it's easy to do using core syntax and this module
+# will only implement grapheme cluster functions going forward, except for
+# code_length and byte_length
 sub code_chop {
     my ($str) = @_;
     utf8::upgrade($str);
@@ -81,7 +87,7 @@ sub graph_reverse {
 
 __END__
 
-=encoding utf8
+=encoding UTF-8
 
 =head1 NAME
 
@@ -89,7 +95,7 @@ Unicode::Util - Unicode-aware versions of built-in Perl functions
 
 =head1 VERSION
 
-This document describes Unicode::Util version 0.05.
+This document describes Unicode::Util version 0.06.
 
 =head1 SYNOPSIS
 
@@ -104,40 +110,28 @@ This document describes Unicode::Util version 0.05.
 
 =head1 DESCRIPTION
 
-This module provides additional versions of Perl’s built-in functions,
-tailored to work on three different units:
-
-=over
-
-=item * B<graph:> Unicode extended grapheme clusters (graphemes)
-
-=item * B<code:> Unicode codepoints
-
-=item * B<byte:> 8-bit bytes (octets)
-
-=back
-
-This is an early release and this module is likely to have major revisions.
-Only the C<length>-, C<chop>-, and C<reverse>-functions are currently
-implemented.  See the L</TODO> section for planned future additions.
+This module provides Unicode-aware versions of Perl’s built-in string
+functions, tailored to work on grapheme clusters as opposed to code points or
+bytes.
 
 =head1 FUNCTIONS
 
-=head2 length
+Functions may each be exported explicitly, or by using the C<:all> tag for
+everything or the C<:length> tag for the length functions.
 
 =over
 
 =item graph_length($string)
 
-Returns the length in graphemes of the given string.  This is likely the
-number of “characters” that many people would count on a printed string, plus
-non-printing characters.
+Returns the length of the given string in grapheme clusters.  This is the
+closest to the number of “characters” that many people would count on a
+printed string.
 
 =item code_length($string)
 
 =item code_length($string, $normal_form)
 
-Returns the length in codepoints of the given string.  This is likely the
+Returns the length of the given string in code points.  This is likely the
 number of “characters” that many programmers and programming languages would
 count in a string.  If the optional Unicode normalization form is supplied,
 the length will be of the string as if it had been normalized to that form.
@@ -151,50 +145,31 @@ C<NFKC>, and C<KD> or C<NFKD>.
 
 =item byte_length($string, $encoding, $normal_form)
 
-Returns the length in bytes of the given string as if it were encoded using
+Returns the length of the given string in bytes, as if it were encoded using
 the specified encoding or UTF-8 if no encoding is supplied.  If the optional
 Unicode normalization form is supplied, the length will be of the string as if
 it had been normalized to that form.
 
-=back
-
-=head2 chop
-
-These do not modify the original value, unlike the built-in C<chop>.
-
-=over
-
 =item graph_chop($string)
 
-Returns the given string with the last grapheme chopped off.
-
-=item code_chop($string)
-
-Returns the given string with the last codepoint chopped off.
-
-=back
-
-=head2 reverse
-
-=over
+Returns the given string with the last grapheme cluster chopped off.  Does not
+modify the original value, unlike the built-in C<chop>.
 
 =item graph_reverse($string)
 
-Returns the given string value with all graphemes in the opposite order.
+Returns the given string value with all grapheme clusters in the opposite
+order.
 
 =back
 
 =head1 TODO
 
-Evaluate the following core Perl functions and operators for the potential
-addition to this module.
-
-C<substr>, C<index>, C<rindex>, C<eq>, C<ne>, C<lt>, C<gt>, C<le>, C<ge>,
-C<cmp>
+C<graph_substr>, C<graph_index>, C<graph_rindex>
 
 =head1 SEE ALSO
 
-L<String::Multibyte>, L<Perl6::Str>, L<http://perlcabal.org/syn/S32/Str.html>
+L<Unicode::GCString>, L<String::Multibyte>, L<Perl6::Str>,
+L<http://perlcabal.org/syn/S32/Str.html>
 
 =head1 AUTHOR
 
