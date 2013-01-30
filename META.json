@@ -1,10 +1,10 @@
 {
-   "abstract" : "Unicode-aware versions of built-in Perl functions",
+   "abstract" : "Unicode grapheme-level versions of built-in Perl functions",
    "author" : [
       "Nick Patch <patch@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.112621",
+   "generated_by" : "Module::Build version 0.4003, CPAN::Meta::Converter version 2.112621",
    "license" : [
       "perl_5"
    ],
@@ -16,7 +16,8 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "Test::More" : "0.41"
+            "Test::More" : "0.41",
+            "Test::Warn" : "0.01"
          }
       },
       "configure" : {
@@ -34,7 +35,7 @@
    "provides" : {
       "Unicode::Util" : {
          "file" : "lib/Unicode/Util.pm",
-         "version" : "0.06"
+         "version" : "0.07"
       }
    },
    "release_status" : "stable",
@@ -50,5 +51,5 @@
          "url" : "git://github.com/patch/unicode-util-pm5.git"
       }
    },
-   "version" : "0.06"
+   "version" : "0.07"
 }

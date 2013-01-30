@@ -9,8 +9,11 @@ META.yml
 README
 t/00-load.t
 t/chop.t
+t/index.t
 t/length.t
 t/reverse.t
+t/rindex.t
+t/split.t
 xt/author/kwalitee.t
 xt/author/pod-coverage.t
 xt/author/pod.t
