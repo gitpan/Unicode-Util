@@ -9,14 +9,14 @@ use Encode qw( encode find_encoding );
 use Unicode::Normalize qw( normalize );
 use Scalar::Util qw( looks_like_number );
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 our @EXPORT_OK = qw(
     grapheme_length
     grapheme_chop
     grapheme_reverse
-    grapheme_split
     grapheme_index
     grapheme_rindex
+    grapheme_split
     graph_length graph_chop graph_reverse
     byte_length code_length code_chop
 );
@@ -28,20 +28,117 @@ our %EXPORT_TAGS = (
 use constant DEFAULT_ENCODING => 'UTF-8';
 use constant IS_NORMAL_FORM   => qr{^ (?:NF)? K? [CD] $}xi;
 
-# deprecated aliases
-*graph_length  = \&grapheme_length;
-*graph_chop    = \&grapheme_chop;
-*graph_reverse = \&grapheme_reverse;
-
-sub grapheme_length {
+sub grapheme_length (;$) {
     my ($str) = @_;
-    utf8::upgrade($str);
-    return scalar( () = $str =~ m/\X/g );
+    $str = $_ unless defined $str;
+    return undef unless defined $str;
+    return scalar( () = $str =~ m{ \X }xg );
 }
 
-# code_length and byte_length are deprecated: they’re easy to do using core
-# syntax and this module will only implement grapheme cluster functions going
-# forward
+sub grapheme_chop (;\[$@%]) {
+    my ($ref) = @_;
+    $ref = \$_ unless defined $ref;
+
+    if (ref $ref eq 'SCALAR') {
+        $$ref =~ s{ ( \X ) \z }{}x;
+        return $1;
+    }
+    elsif (ref $ref eq 'ARRAY') {
+        return undef unless @$ref;
+
+        for my $i ( 0 .. $#{$ref} ) {
+            if ( $i < $#{$ref} ) {
+                $ref->[$i] =~ s{ \X \z }{}x;
+            }
+            else {
+                $ref->[$i] =~ s{ ( \X ) \z }{}x;
+                return $1;
+            }
+        }
+    }
+    elsif (ref $ref eq 'HASH') {
+        my $elems = keys %$ref;
+        return undef unless $elems;
+
+        my $count = 0;
+        for my $str (values %$ref) {
+            if (++$count < $elems) {
+                $str =~ s{ \X \z }{}x;
+            }
+            else {
+                $str =~ s{ ( \X ) \z }{}x;
+                return $1;
+            }
+        }
+    }
+}
+
+sub grapheme_reverse (;@) {
+    my (@strings) = @_;
+    return reverse @strings if wantarray;
+    @strings = $_ unless @strings;
+    return join '', map { reverse m{ \X }xg } reverse @strings;
+}
+
+# experimental functions
+
+sub grapheme_index ($$;$) {
+    my ($str, $substr, $pos) = @_;
+
+    if (!looks_like_number($pos) || $pos < 0) {
+        $pos = 0;
+    }
+    elsif ($pos > (my $graphs = grapheme_length($str))) {
+        $pos = $graphs;
+    }
+
+    if ($str =~ m{ ^ ( \X{$pos} \X*? ) \Q$substr\E }xg) {
+        return grapheme_length($1);
+    }
+    else {
+        return -1;
+    }
+}
+
+sub grapheme_rindex ($$;$) {
+    my ($str, $substr, $pos) = @_;
+
+    if (!looks_like_number($pos) || $pos < 0) {
+        $pos = 0;
+    }
+
+    if ($pos) {
+        # TODO: replace with grapheme_substr
+        $str = substr $str, 0, $pos + ($substr ? 1 : 0);
+    }
+
+    if ($str =~ m{ ^ ( \X* ) \Q$substr\E }xg) {
+        return grapheme_length($1);
+    }
+    else {
+        return -1;
+    }
+}
+
+sub grapheme_substr ($$;$$) :lvalue {
+    my ($str, $offset, $length, $replacement) = @_;
+    return;
+}
+
+sub grapheme_split (;$$) {
+    my ($str) = @_;
+    my @graphs = $str =~ m{ \X }xg;
+    return @graphs;
+}
+
+# deprecated functions
+
+sub graph_length {
+    my ($str) = @_;
+    utf8::upgrade($str);
+    return scalar( () = $str =~ m{ \X }xg );
+}
+
 sub code_length {
     my ($str, $nf) = @_;
     utf8::upgrade($str);
@@ -68,15 +165,13 @@ sub byte_length {
     return length encode($enc, $str);
 }
 
-sub grapheme_chop {
+sub graph_chop {
     my ($str) = @_;
     utf8::upgrade($str);
-    $str =~ s/(\X)\z//;
+    $str =~ s{ \X \z }{}x;
     return $str;
 }
 
-# code_chop is deprecated: it’s easy to do using core syntax and this module
-# will only implement grapheme cluster functions going forward
 sub code_chop {
     my ($str) = @_;
     utf8::upgrade($str);
@@ -84,68 +179,10 @@ sub code_chop {
     return $str;
 }
 
-sub grapheme_reverse {
+sub graph_reverse {
     my ($str) = @_;
     utf8::upgrade($str);
-    my $reverse = '';
-
-    while ( $str =~ s/(\X)\z// ) {
-        $reverse .= $1;
-    }
-
-    return $reverse;
-}
-
-# grapheme_split is experimental and subject to change
-sub grapheme_split {
-    my ($str) = @_;
-    utf8::upgrade($str);
-    my @graphs = $str =~ m/(\X)/g;
-    return @graphs;
-}
-
-# grapheme_index is experimental and subject to change
-sub grapheme_index {
-    my ($str, $substr, $pos) = @_;
-    utf8::upgrade($str);
-    utf8::upgrade($substr);
-
-    if (!looks_like_number($pos) || $pos < 0) {
-        $pos = 0;
-    }
-    elsif ($pos > (my $graphs = grapheme_length($str))) {
-        $pos = $graphs;
-    }
-
-    if ($str =~ m{^ ( \X{$pos} \X*? ) \Q$substr\E }xg) {
-        return grapheme_length($1);
-    }
-    else {
-        return -1;
-    }
-}
-
-# grapheme_rindex is experimental and subject to change
-sub grapheme_rindex {
-    my ($str, $substr, $pos) = @_;
-    utf8::upgrade($str);
-    utf8::upgrade($substr);
-
-    if (!looks_like_number($pos) || $pos < 0) {
-        $pos = 0;
-    }
-
-    if ($pos) {
-        # TODO: replace with grapheme_substr
-        $str = substr $str, 0, $pos + ($substr ? 1 : 0);
-    }
-
-    if ($str =~ m{^ ( \X* ) \Q$substr\E }xg) {
-        return grapheme_length($1);
-    }
-    else {
-        return -1;
-    }
+    return join '', reverse $str =~ m{ \X }xg;
 }
 
 1;
@@ -156,70 +193,83 @@ __END__
 
 =head1 NAME
 
-Unicode::Util - Unicode grapheme-level versions of built-in Perl functions
+Unicode::Util - Unicode grapheme-level versions of core Perl functions
 
 =head1 VERSION
 
-This document describes Unicode::Util version 0.07.
+This document describes Unicode::Util v0.08.
 
 =head1 SYNOPSIS
 
     use Unicode::Util qw( grapheme_length grapheme_reverse );
 
     # grapheme cluster ю́ (Cyrillic small letter yu, combining acute accent)
-    my $grapheme = "\x{044E}\x{0301}";
+    my $grapheme = "ю\x{0301}";
 
     say length($grapheme);           # 2 (length in code points)
     say grapheme_length($grapheme);  # 1 (length in grapheme clusters)
 
     # Spın̈al Tap; n̈ = Latin small letter n, combining diaeresis
-    my $band = "Sp\x{0131}n\x{0308}al Tap";
+    my $band = "Spın\x{0308}al Tap";
 
     say scalar reverse $band;     # paT länıpS
     say grapheme_reverse($band);  # paT lan̈ıpS
 
 =head1 DESCRIPTION
 
-This module provides Unicode grapheme cluster–level versions of Perl’s
-built-in string functions, tailored to work on grapheme clusters as opposed to
-code points or bytes.
-
-This is an early release and major revisions are planned for the near future.
+This module provides versions of core Perl string functions tailored to work on
+Unicode grapheme clusters, which are what users perceive as characters, as
+opposed to code points, which are what Perl considers characters.
 
 =head1 FUNCTIONS
 
-Functions may each be exported explicitly or by using the C<:all> tag for
+These functions are implemented using the C<\X> character class, which was
+introduced in Perl v5.6 and significantly improved in v5.12 to properly match
+Unicode extended grapheme clusters.  An example of a notable change is that
+CR+LF <0x0D 0x0A> is now considered a single grapheme cluster instead of two.
+For that reason, as well as additional Unicode improvements, Perl v5.12 or
+greater is strongly recommended, both for use with this module and as a language
+in general.
+
+These functions may each be exported explicitly or by using the C<:all> tag for
 everything.
 
 =over
 
 =item grapheme_length($string)
 
-Returns the length of the given string in grapheme clusters.  This is the
-closest to the number of “characters” that many people would count on a
-printed string.
+=item grapheme_length
+
+Works like C<length> except the length is in number of grapheme clusters.
 
 =item grapheme_chop($string)
 
-Returns the given string with the last grapheme cluster chopped off.  Does not
-modify the original value, unlike the built-in C<chop>.
+=item grapheme_chop(@array)
+
+=item grapheme_chop(%hash)
+
+=item grapheme_chop
+
+Works like C<chop> except it operates on the last grapheme cluster.
 
 =item grapheme_reverse($string)
 
-Returns the given string value with all grapheme clusters in the opposite
-order.
+=item grapheme_reverse(@list)
+
+=item grapheme_reverse
+
+Works like C<reverse> except it reverses grapheme clusters in scalar context.
 
 =back
 
 =head1 TODO
 
-C<grapheme_substr>, C<graphem_index>, C<grapheme_rindex>, C<canonical_eq>,
-C<compatibility_eq>
+C<grapheme_index>, C<grapheme_rindex>, C<grapheme_substr>
 
 =head1 SEE ALSO
 
-L<Unicode::GCString>, L<String::Multibyte>, L<Perl6::Str>,
-L<http://perlcabal.org/syn/S32/Str.html>
+L<Unicode::GCString>, L<http://www.unicode.org/reports/tr29/>, L<Perl6::Str>,
+L<http://perlcabal.org/syn/S32/Str.html>, L<String::Multibyte>
 
 =head1 AUTHOR
 

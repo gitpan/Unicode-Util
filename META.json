@@ -1,5 +1,5 @@
 {
-   "abstract" : "Unicode grapheme-level versions of built-in Perl functions",
+   "abstract" : "Unicode grapheme-level versions of core Perl functions",
    "author" : [
       "Nick Patch <patch@cpan.org>"
    ],
@@ -26,6 +26,9 @@
          }
       },
       "runtime" : {
+         "recommends" : {
+            "perl" : "v5.12.0"
+         },
          "requires" : {
             "parent" : 0,
             "perl" : "v5.8.0"
@@ -35,7 +38,7 @@
    "provides" : {
       "Unicode::Util" : {
          "file" : "lib/Unicode/Util.pm",
-         "version" : "0.07"
+         "version" : "0.08"
       }
    },
    "release_status" : "stable",
@@ -51,5 +54,5 @@
          "url" : "git://github.com/patch/unicode-util-pm5.git"
       }
    },
-   "version" : "0.07"
+   "version" : "0.08"
 }
