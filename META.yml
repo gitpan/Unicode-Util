@@ -17,7 +17,7 @@ name: Unicode-Util
 provides:
   Unicode::Util:
     file: lib/Unicode/Util.pm
-    version: 0.08
+    version: 0.09
 recommends:
   perl: v5.12.0
 requires:
@@ -28,4 +28,4 @@ resources:
   homepage: https://github.com/patch/unicode-util-pm5
   license: http://dev.perl.org/licenses/
   repository: git://github.com/patch/unicode-util-pm5.git
-version: 0.08
+version: 0.09

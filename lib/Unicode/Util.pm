@@ -9,7 +9,7 @@ use Encode qw( encode find_encoding );
 use Unicode::Normalize qw( normalize );
 use Scalar::Util qw( looks_like_number );
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 our @EXPORT_OK = qw(
     grapheme_length
     grapheme_chop
@@ -30,18 +30,17 @@ use constant IS_NORMAL_FORM   => qr{^ (?:NF)? K? [CD] $}xi;
 
 sub grapheme_length (;$) {
     my ($str) = @_;
-    $str = $_ unless defined $str;
-    return undef unless defined $str;
+    $str = $_ unless @_;
     return scalar( () = $str =~ m{ \X }xg );
 }
 
 sub grapheme_chop (;\[$@%]) {
     my ($ref) = @_;
-    $ref = \$_ unless defined $ref;
+    $ref = \$_ unless @_;
 
     if (ref $ref eq 'SCALAR') {
         $$ref =~ s{ ( \X ) \z }{}x;
-        return $1;
+        return defined $1 ? $1 : '';
     }
     elsif (ref $ref eq 'ARRAY') {
         return undef unless @$ref;
@@ -52,7 +51,7 @@ sub grapheme_chop (;\[$@%]) {
             }
             else {
                 $ref->[$i] =~ s{ ( \X ) \z }{}x;
-                return $1;
+                return defined $1 ? $1 : '';
             }
         }
     }
@@ -67,7 +66,7 @@ sub grapheme_chop (;\[$@%]) {
             }
             else {
                 $str =~ s{ ( \X ) \z }{}x;
-                return $1;
+                return defined $1 ? $1 : '';
             }
         }
     }
@@ -80,25 +79,23 @@ sub grapheme_reverse (;@) {
     return join '', map { reverse m{ \X }xg } reverse @strings;
 }
 
-# experimental functions
-
 sub grapheme_index ($$;$) {
     my ($str, $substr, $pos) = @_;
 
     if (!looks_like_number($pos) || $pos < 0) {
         $pos = 0;
     }
-    elsif ($pos > (my $graphs = grapheme_length($str))) {
-        $pos = $graphs;
+    elsif ($pos > (my $length = grapheme_length($str))) {
+        $pos = $length;
     }
 
-    if ($str =~ m{ ^ ( \X{$pos} \X*? ) \Q$substr\E }xg) {
-        return grapheme_length($1);
-    }
-    else {
-        return -1;
-    }
+    return grapheme_length($1) + $[
+        if $str =~ m{ ^ ( \X{$pos} \X*? ) \Q$substr\E }xg;
+
+    return -1;
 }
+
+# experimental functions
 
 sub grapheme_rindex ($$;$) {
     my ($str, $substr, $pos) = @_;
@@ -112,12 +109,10 @@ sub grapheme_rindex ($$;$) {
         $str = substr $str, 0, $pos + ($substr ? 1 : 0);
     }
 
-    if ($str =~ m{ ^ ( \X* ) \Q$substr\E }xg) {
-        return grapheme_length($1);
-    }
-    else {
-        return -1;
-    }
+    return grapheme_length($1)
+        if $str =~ m{ ^ ( \X* ) \Q$substr\E }xg;
+
+    return -1;
 }
 
 sub grapheme_substr ($$;$$) :lvalue {
@@ -197,20 +192,20 @@ Unicode::Util - Unicode grapheme-level versions of core Perl functions
 
 =head1 VERSION
 
-This document describes Unicode::Util v0.08.
+This document describes Unicode::Util v0.09.
 
 =head1 SYNOPSIS
 
     use Unicode::Util qw( grapheme_length grapheme_reverse );
 
     # grapheme cluster ю́ (Cyrillic small letter yu, combining acute accent)
-    my $grapheme = "ю\x{0301}";
+    my $grapheme = "ю\x{301}";
 
     say length($grapheme);           # 2 (length in code points)
     say grapheme_length($grapheme);  # 1 (length in grapheme clusters)
 
     # Spın̈al Tap; n̈ = Latin small letter n, combining diaeresis
-    my $band = "Spın\x{0308}al Tap";
+    my $band = "Spın\x{308}al Tap";
 
     say scalar reverse $band;     # paT länıpS
     say grapheme_reverse($band);  # paT lan̈ıpS
@@ -260,11 +255,17 @@ Works like C<chop> except it operates on the last grapheme cluster.
 
 Works like C<reverse> except it reverses grapheme clusters in scalar context.
 
+=item grapheme_index($string, $substring, $position)
+
+=item grapheme_index($string, $substring)
+
+Works like C<index> except the position is in grapheme clusters.
+
 =back
 
 =head1 TODO
 
-C<grapheme_index>, C<grapheme_rindex>, C<grapheme_substr>
+C<grapheme_rindex>, C<grapheme_substr>
 
 =head1 SEE ALSO
 
