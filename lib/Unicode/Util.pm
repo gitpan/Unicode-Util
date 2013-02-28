@@ -5,28 +5,22 @@ use strict;
 use warnings;
 use utf8;
 use parent 'Exporter';
-use Encode qw( encode find_encoding );
-use Unicode::Normalize qw( normalize );
-use Scalar::Util qw( looks_like_number );
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 our @EXPORT_OK = qw(
     grapheme_length
     grapheme_chop
     grapheme_reverse
     grapheme_index
     grapheme_rindex
+    grapheme_substr
     grapheme_split
     graph_length graph_chop graph_reverse
     byte_length code_length code_chop
 );
-our %EXPORT_TAGS = (
-    all    => \@EXPORT_OK,
-    length => [qw( graph_length code_length byte_length )], # deprecated
-);
+our %EXPORT_TAGS = (all => \@EXPORT_OK);
 
-use constant DEFAULT_ENCODING => 'UTF-8';
-use constant IS_NORMAL_FORM   => qr{^ (?:NF)? K? [CD] $}xi;
+sub grapheme_substr (\$$;$$);
 
 sub grapheme_length (;$) {
     my ($str) = @_;
@@ -95,8 +89,6 @@ sub grapheme_index ($$;$) {
     return -1;
 }
 
-# experimental functions
-
 sub grapheme_rindex ($$;$) {
     my ($str, $substr, $pos) = @_;
 
@@ -105,8 +97,7 @@ sub grapheme_rindex ($$;$) {
     }
 
     if ($pos) {
-        # TODO: replace with grapheme_substr
-        $str = substr $str, 0, $pos + ($substr ? 1 : 0);
+        $str = grapheme_substr($str, 0, $pos + ($substr ? 1 : 0));
     }
 
     return grapheme_length($1)
@@ -115,10 +106,95 @@ sub grapheme_rindex ($$;$) {
     return -1;
 }
 
-sub grapheme_substr ($$;$$) :lvalue {
+sub grapheme_substr (\$$;$$) {
     my ($str, $offset, $length, $replacement) = @_;
-    return;
+
+    if (@_ == 2) {
+        if ($offset >= 0) {
+            return $1 if $$str =~ m{ ^ \X{$offset} ( .* ) }x;
+        }
+        else {
+            my $abs_offset = abs $offset;
+            return $1 if $$str =~ m{ ( \X{0,$abs_offset} ) \z }x;
+        }
+    }
+    elsif (@_ == 3) {
+        if ($offset >= 0) {
+            if ($length >= 0) {
+                return $1 if $$str =~ m{
+                    ^ \X{$offset}
+                    ( \X{0,$length} )
+                }x;
+            }
+            else {
+                my $abs_length = abs $length;
+                return $1 if $$str =~ m{
+                    ^ \X{$offset}
+                    ( .*? )
+                    \X{$abs_length} \z
+                }x;
+            }
+        }
+        else {
+            my $abs_offset = abs $offset;
+            if ($length >= 0) {
+                return $1 if $$str =~ m{
+                    (?= \X{$abs_offset} \z )
+                    ( \X{0,$length} )
+                }x;
+            }
+            else {
+                my $abs_length = abs $length;
+                return $1 if $$str =~ m{
+                    (?= \X{$abs_offset} \z )
+                    ( .*? )
+                    ( \X{$abs_length} )
+                }x;
+            }
+        }
+    }
+    elsif (@_ == 4) {
+        if ($offset >= 0) {
+            if ($length >= 0) {
+                $$str =~ m{ ^ ( \X{$offset} ) }x;
+                my $codepoint_offset = length $1;
+                return $1 if $$str =~ s{
+                    (?<= ^ .{$codepoint_offset} )
+                    ( \X{0,$length} )
+                }{$replacement}x;
+            }
+            else {
+                $$str =~ m{ ^ ( \X{$offset} ) }x;
+                my $codepoint_offset = length $1;
+                my $abs_length = abs $length;
+                return $1 if $$str =~ s{
+                    (?<= ^ .{$codepoint_offset} )
+                    ( .*? )
+                    (?= \X{$abs_length} \z )
+                }{$replacement}x;
+            }
+        }
+        else {
+            my $abs_offset = abs $offset;
+            if ($length >= 0) {
+                return $1 if $$str =~ s{
+                    (?= \X{$abs_offset} \z )
+                    ( \X{0,$length} )
+                }{$replacement}x;
+            }
+            else {
+                my $abs_length = abs $length;
+                return $1 if $$str =~ s{
+                    (?= \X{$abs_offset} \z )
+                    ( .*? )
+                    (?= \X{$abs_length} )
+                }{$replacement}x;
+            }
+        }
+    }
 }
+
+# experimental functions
 
 sub grapheme_split (;$$) {
     my ($str) = @_;
@@ -127,6 +203,15 @@ sub grapheme_split (;$$) {
 }
 
 # deprecated functions
+
+use Encode qw( encode find_encoding );
+use Unicode::Normalize qw( normalize );
+use Scalar::Util qw( looks_like_number );
+
+use constant DEFAULT_ENCODING => 'UTF-8';
+use constant IS_NORMAL_FORM   => qr{^ (?:NF)? K? [CD] $}xi;
+
+$EXPORT_TAGS{length} = [qw( graph_length code_length byte_length )];
 
 sub graph_length {
     my ($str) = @_;
@@ -192,7 +277,7 @@ Unicode::Util - Unicode grapheme-level versions of core Perl functions
 
 =head1 VERSION
 
-This document describes Unicode::Util v0.09.
+This document describes Unicode::Util v0.10.
 
 =head1 SYNOPSIS
 
@@ -218,13 +303,13 @@ opposed to code points, which are what Perl considers characters.
 
 =head1 FUNCTIONS
 
-These functions are implemented using the C<\X> character class, which was
-introduced in Perl v5.6 and significantly improved in v5.12 to properly match
-Unicode extended grapheme clusters.  An example of a notable change is that
-CR+LF <0x0D 0x0A> is now considered a single grapheme cluster instead of two.
-For that reason, as well as additional Unicode improvements, Perl v5.12 or
-greater is strongly recommended, both for use with this module and as a language
-in general.
+These functions all operate on character strings, not byte strings.  They are
+implemented using the C<\X> character class, which was introduced in Perl v5.6
+and significantly improved in v5.12 to properly match Unicode extended grapheme
+clusters.  An example of a notable change is that CR+LF S<<0x0D 0x0A>> is now
+considered a single grapheme cluster instead of two.  For that reason, as well
+as additional Unicode improvements, Perl v5.12 or greater is strongly
+recommended, both for use with this module and as a language in general.
 
 These functions may each be exported explicitly or by using the C<:all> tag for
 everything.
@@ -261,16 +346,39 @@ Works like C<reverse> except it reverses grapheme clusters in scalar context.
 
 Works like C<index> except the position is in grapheme clusters.
 
+=item grapheme_rindex($string, $substring, $position)
+
+=item grapheme_rindex($string, $substring)
+
+Works like C<rindex> except the position is in grapheme clusters.
+
+=item grapheme_substr($string, $offset, $length, $replacement)
+
+=item grapheme_substr($string, $offset, $length)
+
+=item grapheme_substr($string, $offset)
+
+Works like C<substr> except the offset and length are in grapheme clusters.
+
 =back
-
-=head1 TODO
-
-C<grapheme_rindex>, C<grapheme_substr>
 
 =head1 SEE ALSO
 
-L<Unicode::GCString>, L<http://www.unicode.org/reports/tr29/>, L<Perl6::Str>,
-L<http://perlcabal.org/syn/S32/Str.html>, L<String::Multibyte>
+=over
+
+=item * L<Unicode::GCString> - String as sequence of UAX #29 grapheme clusters
+
+=item * L<Perl6::Str> - Grapheme-level string implementation for Perl 5
+
+=item * L<String::Multibyte> - Manipulation of multibyte character strings
+
+=item * L<http://www.unicode.org/reports/tr29/> - UAX #29: Unicode Text
+Segmentation
+
+=item * L<http://perlcabal.org/syn/S32/Str.html> - Perl 6 Synopsis 32: Setting
+Library—Str
+
+=back
 
 =head1 AUTHOR
 

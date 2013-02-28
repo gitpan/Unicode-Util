@@ -38,7 +38,7 @@
    "provides" : {
       "Unicode::Util" : {
          "file" : "lib/Unicode/Util.pm",
-         "version" : "0.09"
+         "version" : "0.10"
       }
    },
    "release_status" : "stable",
@@ -54,5 +54,5 @@
          "url" : "git://github.com/patch/unicode-util-pm5.git"
       }
    },
-   "version" : "0.09"
+   "version" : "0.10"
 }
